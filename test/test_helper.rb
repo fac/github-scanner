@@ -1,0 +1,5 @@
+# frozen_string_literal: true
+
+require "github/scanner"
+
+require "minitest/autorun"
