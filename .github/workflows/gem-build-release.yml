@@ -35,11 +35,11 @@ jobs:
   # TODO: Bump version (gem bump for now?)
   # https://docs.github.com/en/actions/guides/building-and-testing-ruby
   release:
-    name: Release Gem
-    runs-on: ubuntu-latest
+    name:  Release Gem
     needs: package
-    if: github.ref == 'refs/heads/master'
+    if:    github.ref == 'refs/heads/master'
 
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - uses: ruby/setup-ruby@v1 # .ruby-version for ruby setup
@@ -54,5 +54,5 @@ jobs:
         gem build *.gemspec
         gem push --KEY github --host https://rubygems.pkg.github.com/${OWNER} *.gem
       env:
-        GEM_HOST_API_KEY: "Bearer ${{secrets.FAC_PKG_ACCESS}}"
+        GEM_HOST_API_KEY: "Bearer ${{ secrets.github_token }}"
         OWNER: ${{ github.repository_owner }}
