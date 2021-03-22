@@ -1,0 +1,18 @@
+query ($repoFirst: Int = 50, $repoEndCursor: String) {
+  org: organization(login: "fac") {
+    repos: repositories(first: $repoFirst, after: $repoEndCursor, orderBy: {field: NAME, direction: ASC}) {
+      pageInfo {
+        hasNextPage
+        endCursor
+        hasPreviousPage
+        startCursor
+      }
+      totalCount
+      nodes {
+        name
+        nameWithOwner
+        isArchived
+      }
+    }
+  }
+}

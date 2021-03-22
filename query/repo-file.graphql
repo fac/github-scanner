@@ -1,0 +1,39 @@
+query ($repoEndCursor: String, $repoFirst: Int=10, $filePath: String="Jenkinsfile") {
+  result: organization(login: "fac") {
+    repositories(first: $repoFirst, after: $repoEndCursor) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
+      nodes {
+          name
+          nameWithOwner
+          isArchived
+          defaultBranch: defaultBranchRef {
+          target {
+              ... on Commit {
+              authoredDate
+              author {
+                  name
+                  email
+              }
+              oid
+              file(path: $filePath) {
+                  name
+                  path
+                  type
+                  object {
+                  ... on Blob {
+                      id
+                      text
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

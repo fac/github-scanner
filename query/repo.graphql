@@ -1,0 +1,28 @@
+query ($repoEndCursor: String, $repoFirst: Int=10) {
+  result: organization(login: "fac") {
+    repositories(first: $repoFirst, after: $repoEndCursor) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
+      nodes {
+          name
+          nameWithOwner
+          isArchived
+          defaultBranch: defaultBranchRef {
+          target {
+              ... on Commit {
+              authoredDate
+              author {
+                  name
+                  email
+              }
+              oid
+            }
+          }
+        }
+      }
+    }
+  }
+}
