@@ -1,0 +1,146 @@
+#!/usr/bin/env ruby
+
+require 'github/scanner'
+require 'slop' # option parsing
+
+class GitHubRepoScan
+  def initialize
+    @progname = File.basename $0
+    @opts = nil
+    @name_width = 20
+  end
+
+  def main
+    @opts = Slop.parse do |opt|
+      opt.banner = "usage: #{@progname} [ls|list|cat|total|json] [OPTIONS]"
+
+      opt.bool    '--archived',     'Include archived repos in the search'
+      opt.bool    '--all',          'Include all repos, don\'t filter by archive or path existing'
+      opt.integer '--text-context', '-C', 'Lines of files context to show', default: 10
+      opt.bool    '--repo-divider', 'Show repo divider line in cat', default: true
+      opt.bool    '--repo-prefix',  'Prefix lines with repo name in cat', default: true
+      opt.string  '--path',         'File path in the repo to scan', default: 'README.md'
+      opt.string  '--grep',         'File contents match this regex', default: ''
+      opt.string  '--grep-exclude', 'File contents do not match this regex', default: ''
+      opt.bool    '--long', '-l',   'Long list format'
+      opt.bool    '--count',        'Show count on repo matches and total at the end'
+      opt.bool    '--task-list',    'Markdown task list format list'
+
+      opt.on '--version', 'print the version' do
+        puts GitHub::Scanner::VERSION
+        exit
+      end
+    end
+
+    exit_usage! 'No action given' if @opts.arguments.size != 1
+    act = @opts.arguments[0].to_sym
+    exit_usage! "Unknown action: #{act}" unless self.respond_to? act
+    self.send(act)
+  end
+
+  def exit_usage!(msg = '')
+    puts msg if msg != ''
+    puts @opts
+    exit 1
+  end
+
+  def json
+    res = GitHub::Scanner.new.repo_query(repoFirst: 1)
+    puts JSON.pretty_generate(res.to_h)
+  end
+
+  def total
+    res = GitHub::Scanner.new.repo_query(repoFirst: 1)
+    puts "Total Count: #{res.data.result.repositories.total_count}"
+  end
+
+  def list
+    # Get the maximum possible number of repos scanned, we wont get all these,
+    # but handy for sizing columns and things
+    res = GitHub::Scanner.new.repo_query(repoFirst: 1).data.result
+    total_count = res.repositories.total_count.to_i
+
+    c = 0
+    repos(repoFirst: 100) do |repo|
+      c = c + 1
+      puts list_line(c, repo, c_width: total_count.to_s.size)
+    end
+    puts("#{c} repos") if @opts[:count]
+  end
+
+  alias :ls :list
+
+  private def list_line(c, repo, c_width: 2)
+    line = if @opts[:task_list]
+      "* [ ] "
+    elsif @opts[:count]
+      "%#{c_width}d " % c
+    else
+      ""
+    end
+    name = repo.name_with_owner
+    @name_width = name.to_s.size if name.to_s.size > @name_width
+    arch = repo.is_archived ? "ARCHIVED " : ""
+    line += "%-#{@name_width}s %s" % [repo.name_with_owner, arch]
+
+    return line unless @opts[:long]
+    
+    return line + "EMPTY" if repo.default_branch&.target == nil
+
+    sha      = repo.default_branch.target.oid
+    fname    = repo.default_branch.target&.file&.path # includes name
+    authDate = repo.default_branch.target&.authored_date 
+    authName = repo.default_branch.target&.author&.name
+    line += " #{fname} #{sha[0..8]} #{authDate} #{authName}"
+    line
+  end
+
+  # cat contents of repo's path to stdout
+  def cat
+    repos(repoFirst: 10) do |repo|
+      name  = repo.name_with_owner
+      sha   = repo.default_branch.target.oid
+      fname = repo.default_branch.target.file.path # includes name
+      puts "==> #{name} #{fname}@#{sha} <==============================" if @opts[:repo_divider]
+      text = repo.default_branch.target&.file&.object&.text
+      unless text
+        puts "<no match>"
+        next
+      end
+      prefix = @opts[:repo_prefix] ? "#{name}: " : ""
+      puts prefix + text.split(/\n/).first(@opts[:text_context]).join("\n#{prefix}")
+    end
+  end
+
+  # Scan repositories, filter out repos that don't match the repo_filter, run
+  # the given block on each repo that does. Traps errors in that block, outputs
+  # error and the raw json for the offending repo.
+  private def repos(**kwargs, &block)
+    vars  = { filePath: @opts[:path] }.merge(kwargs)
+    GitHub::Scanner.new.repositories(vars).each do |repo|
+      next unless @opts[:all] || repo_filter(repo)
+      block.call repo
+    rescue => err
+      STDERR.puts "ERROR: #{err}"
+      STDERR.puts JSON.pretty_generate(repo.to_h)
+    end
+  end
+
+  # Given a repo, return true to include the repo, false to exclude
+  private def repo_filter(repo)
+    return false if !@opts[:all] && repo.is_archived && ! @opts[:archived] 
+    return false if !@opts[:all] && repo&.default_branch&.target&.file.nil?
+    text = repo.default_branch.target&.file&.object&.text
+    unless @opts[:grep].empty?
+      return false unless text
+      return false unless text =~ /#{@opts[:grep]}/m
+    end
+    unless @opts[:grep_exclude].empty?
+      return false unless text
+      return false unless text !~ /#{@opts[:grep_exclude]}/m
+    end
+    true
+  end
+end
+
+GitHubRepoScan.new.main

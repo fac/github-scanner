@@ -1,32 +1,42 @@
-# github-scanner
+# GitHub::Scanner
 
-Dev-Platform present a Tool for fast scanning of GH repos and their git trees.
+A command line power tool for fast scanning of GH repos and their git trees, via the graphQL API.
 
-Initial repo dump of script, but functional and useful.
+## Installation
 
-# Install
+You need to be on **ruby 2.7+** Install locally:
 
-You need to be on ruby 2.7+
-
-```
-gem install graphql-client
-gem install slop
+```bash
+gem install github-scanner --source "https://rubygems.pkg.github.com/fac"
 ```
 
-# Usage
+To use the lib in your own code add this line to your application's Gemfile:
+
+```ruby
+source "https://rubygems.pkg.github.com/fac" do
+  gem 'github-scanner'
+end
+```
+
+And then execute:
+```bash
+bundle install
+```
+
+## Usage
 
 You need a GitHub Personal Access Token (PAT) with perms to read all the orgs and repos you want to scan. Set that in the env as `GITHUB_PAT`.
 
-```
+```bash
 export GITHUB_PATH=xxx
 ```
 
-## Get Help
+### Getting Help
 
 ```
-> ./github-repo-scan
+> gh-repo-scan
 No action given
-usage: ./github-repo-scan [ACTION] [OPTIONS]
+usage: gh-repo-scan [ls|list|cat|total|json] [OPTIONS]
     --archived                  Include archived repos in the search
     --all                       Include all repos, don't filter by archive or path existing
     --text-context, -C          Lines of files context to show
@@ -41,14 +51,14 @@ usage: ./github-repo-scan [ACTION] [OPTIONS]
     --version                   print the version
 ```
 
-## List repos
+### `list` `ls` - List repositories
 
-Running `github-repo-scan ls` (or `list`), lists repos and matched files. Use the options to change the filter. Note, by default archived repos are ignored.
+Running `gh-repo-scan ls` (or `list`), lists repos and matched files. Use the options to change the filter. Note, by default archived repos are ignored.
 
 List all repos with a Gemfile on the default branch:
 
 ```
-> ./github-repo-scan ls --path=Gemfile
+> ./gh-repo-scan ls --path=Gemfile
 fac/freeagent        
 fac/banksy
 ...
@@ -56,14 +66,14 @@ fac/banksy
 
 All repos with a Jenkinsfile that runs the gem build pipeline, with extra info and counts:
 ```
-> ./github-repo-scan ls --path=Jenkinsfile --grep='freeagentGem' --long --count
+> ./gh-repo-scan ls --path=Jenkinsfile --grep='freeagentGem' --long --count
  1 fac/freeagent-api-view  Jenkinsfile 4252468f3 2021-01-15T16:33:25Z David Pilling
  ...
  26 fac/nulldb            Jenkinsfile a4d529688 2021-02-24T14:00:12Z James Bell
  26 repos
 ```
 
-## Cat repos
+### `cat` - Cat repository file contents
 
 The `cat` command is for catting (dumping to STDOUT) the contents of files in the git tree of the repo (on the defualt branch).
 
@@ -76,7 +86,7 @@ cat -C42 --path=Jenkinsfile --grep='freeagentGem' | less
 The Gemfile is grabbed from each repo and the contents output with lines prefixed with the repo name and with a divider between repos. Both are optional. -C is the amount to cat of the file, context like grep. e.g. lets review the README headers:
 
 ```
-> ./github-repo-scan cat -C6 --path=README.md
+> ./gh-repo-scan cat -C6 --path=README.md
 ==> fac/banksy README.md@35c0d7e4e36c0e9e71f4396f2c56da689ab50004 <==============================
 fac/banksy: # banksy
 fac/banksy: 
@@ -96,10 +106,20 @@ fac/dev-dashboard:
 
 This prefixed out is also handy for piping into grep and friends. e.g. to (somewhat randomly) find all the repos we use a ruby table gem in:
 ```
-> ./github-repo-scan cat -C1000 --path=Gemfile | grep table
+> ./gh-repo-scan cat -C1000 --path=Gemfile | grep table
 fac/freeagent: gem "terminal-table"
 fac/api-service: gem 'terminal-table'
 fac/jenkins-aws-images: gem 'table_print'
 fac/nestor: gem 'tty-table', '~> 0.10.0'
 fac/trello-archiver: gem 'terminal-table'
 ```
+
+## Development
+
+After checking out the repo, run `bundle install` to install dependencies. Then, run `bundle exec rake` to run all the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+
+To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file.
+
+## Contributing
+
+Bug reports and pull requests are welcome on GitHub at https://github.com/fac/github-scanner. Find those responsible and willing to help in `#dev-platform`.
