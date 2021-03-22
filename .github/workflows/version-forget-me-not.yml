@@ -1,0 +1,21 @@
+# Check that the version has been updated before merge.
+# https://github.com/marketplace/actions/version-forget-me-not
+name: Version Forget-Me-Not
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+    types: [opened, synchronize]
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: simplybusiness/version-forget-me-not@v2
+        env:
+          ACCESS_TOKEN: ${{ secrets.github_token }}
+          # Change to the file path where you keep the Gem's version.
+          # It is usually `lib/<gem name>/version.rb` or in the gemspec file.
+          VERSION_FILE_PATH: "lib/github/scanner/version.rb"
