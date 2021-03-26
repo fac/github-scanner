@@ -1,6 +1,6 @@
-query ($repoFirst: Int = 50, $repoEndCursor: String) {
-  org: organization(login: "fac") {
-    repos: repositories(first: $repoFirst, after: $repoEndCursor, orderBy: {field: NAME, direction: ASC}) {
+query ($org: String="", $reposFirst: Int = 50, $reposAfter: String) {
+  org: organization(login: $org) {
+    repos: repositories(first: $reposFirst, after: $reposAfter, orderBy: {field: NAME, direction: ASC}) {
       pageInfo {
         hasNextPage
         endCursor

@@ -1,6 +1,6 @@
-query ($repoEndCursor: String, $repoFirst: Int=10, $filePath: String="Jenkinsfile") {
-  result: organization(login: "fac") {
-    repositories(first: $repoFirst, after: $repoEndCursor) {
+query ($org: String="", $reposAfter: String, $reposFirst: Int=10, $filePath: String="") {
+  org: organization(login: $org) {
+    repos: repositories(first: $reposFirst, after: $reposAfter) {
       pageInfo {
         hasNextPage
         endCursor

@@ -23,18 +23,17 @@ module Scanner
 # EOQL
 # q = QL.parse(query_string)
 #
-# q = QL.parse(file: "foo.graphql")
+# q = QL.parse(file: "repo.graphql")
 #
-# q.run
-# puts "Total Count: #{q.data['result']['repositories']['totalCount']"
+# puts "Total: %s" % q.run.data['result']['repositories']['totalCount']
 #
-# q.run(first: 23).paginate('org','repositories', after: 'endRepoCursor').each |repo| do
+# q.paginate('org', 'repos', org: "fac").each |repo| do
 #   puts repo['name']
 # end
 #
 # The module knows the details of the schema handling, download with local file
-# caching. Authenticates using a GitHub personnel access token set vis ENV in
-# GITHUB_PAT.
+# caching. Authenticates using a GitHub personnel access token set via ENV in
+# GITHUB_PAT. Will raise an error if this is not set when trying to connect.
 module QL
   SchemaURL = 'https://api.github.com/graphql' 
 
@@ -81,9 +80,15 @@ module QL
     File.join @query_dir, paths
   end
 
-  # parse(qstr, name: "")
-  # parse(file: "", name: "")
-  def self.parse(qstr = "", file: nil, name: nil)
+  # Parse a query string or file containing graphql against the GitHub schema.
+  # Returns a QL::Query instance you can use to run the query and get data.
+  #
+  # q = parse(qstr)
+  # q = parse(file: "", name: "")
+  #
+  # If the file path is relative, loads queries from the query directory in the
+  # GitHub::Scanner distrib.
+  def self.parse(qstr = "", file: nil)
     if qstr.empty? && !file.nil?
       file = query_dir(file) if Pathname.new(file).relative?
       qstr = File.read file
@@ -96,51 +101,96 @@ module QL
     else
       QL.const_set cname, client.parse(qstr)
     end
-    QueryRunner.new q
+    Query.new q
   end
 
+  # Run parsed queries. This is lower level call direct to the client, normally
+  # you should run queries via the Query object.
   # TODO: check arg for GraphQL::Client::OperationDefinition auto parse string if not
   def self.query(...)
-    res = client.query(...)
-    res.errors.each { |err| STDERR.puts "ERROR: #{err}" }
-    res
+    client.query(...)
   end
 
-  class QueryRunner
-    extend Forwardable
-
-    attr_reader :query, :vars, :data
-
-    def_delegators :@data, :to_h, :to_json, :key
+  # Query instances are parsed graphql queries, with methods to run and paginate.
+  #
+  # Holds a set of defaults for the query variables, that are merged with the
+  # variables passed to run or paginate.
+  #
+  # The Query class is does not hold any state from running, returning a Result
+  # object or Enumerator for paging.
+  class Query
+    attr_reader :query, :variables
 
     def initialize(q, vars = {})
       @query      = q
       @variables  = vars
-      @data       = nil
     end
 
+    # Run the query and return the Result.
     def run(vars = {})
-      @variables = vars
-      @data      = QL.query(@query, variables: vars).data.to_h
-      # TODO: the errors? .errors
-      self
+      Result.new QL.query(@query, variables: @variables.clone.merge(vars))
     end
 
-    # q.run.paginate('result', 'repositories', after: 'repoEndCursor').each do |r|
+    # Paginate through a paged result. That is, a node list from a query with
+    # pageInfo, with minimum hasNextPage and endCursor fields selected.
+    #
+    # The after: arg sets the name of the query variable that sets the after
+    # param on query you are paging. e.g.
+    #
+    # Any other keyword args are used as query parameters. You can also pass a
+    # hash explicitly in variables:. Keyword args are merged into variables if
+    # both are present.
+    #
+    # query ($org: String="", $reposFirst: Int = 50, $reposAfter: String) {
+    #   org: organization(login: $org) {
+    #     repos: repositories(first: $reposFirst, after: $reposAfter) {
+    #       pageInfo {
+    #         hasNextPage
+    #         endCursor
+    #       }
+    #
+    # q.run.paginate('org', 'repos', after: 'reposAfter', org: "fac").each do |r|
     #   puts r['name']
     # end
-    def paginate(*path, after: "after")
-      vars = @variables.clone
+    #
+    # If you don't set the after variable, paginate will guess by postfixing
+    # the last part of the path with "After". e.g.
+    #
+    # q.run.paginate('org', 'repos', org: "fac").each do |r|  # after: reposAfter
+    #
+    def paginate(*path, after: "", variables: {}, **kwvars)
+      after = "#{path[-1]}After" if after.empty?
+      vars  = @variables.clone.merge(variables).merge(kwvars)
       Enumerator.new do |yielder|
         loop do
-          q = @data.dig *path
-          q['nodes'].each { |node| yielder << node }
+          res = run vars
+          q   = res.data.dig(*path) or break
+          # TODO: throw here? raise "No pageInfo found for path: #{path.join('.')} data:#{res.to_json}"
+          # This exception is a pita to debug/catch. Can't do it in run, needs to be at run call site.
+
+          q['nodes'].each { |node| yielder.yield node, res }
 
           break unless q['pageInfo']['hasNextPage']
           vars[after] = q['pageInfo']['endCursor']
-          run vars
         end
       end
+    end
+  end
+
+  # Result encapsulates the result from running a query and provides access to
+  # the data (while hiding the graphql/client from users).
+  class Result
+    extend Forwardable
+
+    attr_reader :data, :errors
+
+    def_delegators :@data, :to_h, :to_json, :key
+
+    def initialize(res)
+      @result = res
+      @data   = res.data.to_h
+      # We get the std message, path, locations keys plus GH add extra type key.
+      @errors = @result.to_h['errors'] if @result.to_h.key? 'errors'
     end
   end
 end # QL
