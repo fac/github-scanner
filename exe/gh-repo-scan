@@ -40,9 +40,9 @@ class GitHubRepoScan
       opt.string  '--grep',          'File contents match this regex', default: ''
       opt.string  '--grep-exclude',  'File contents do not match this regex', default: ''
       opt.integer '-C', '--context', 'Lines of files context to show in cat. Default is all.', default: nil
-      opt.bool    '--repo-divider',  'Show repo divider line in cat', default: true
-      opt.bool    '--repo-prefix',   'Prefix lines with repo name in cat', default: true
-      opt.bool    '--line-numbers',  'Prefix lines line line number in cat', default: true
+      opt.bool    '--file-header',   'Show file header above contents in cat', default: $stdout.tty?
+      opt.bool    '--line-prefix',   'Prefix lines with repo name in cat',     default: !$stdout.tty?
+      opt.bool    '--line-numbers',  'Prefix lines line line number in cat',   default: true
     end
 
     act = @opts.arguments[0]&.to_sym
@@ -94,25 +94,28 @@ class GitHubRepoScan
 
   # cat contents of repo's path to stdout
   def cat
+    scan.withFileText = true
     scan.run({ reposFirst: 10, filePath: @opts[:path] }).each do |repo|
       name  = repo['nameWithOwner']
       sha   = repo.dig 'defaultBranch', 'target', 'oid'
       fname = repo.dig 'defaultBranch', 'target', 'file', 'path' # includes name
-      puts "\n#{name}: ====> #{fname} @#{sha} <==============================" if @opts[:repo_divider]
-      text = repo.dig('defaultBranch', 'target', 'file', 'object', 'text')
-      unless text
-        puts "<no match>"
-        next
+
+      if @opts[:file_header]
+        puts "\n" unless scan.matched == 1
+        puts "github.com:#{name}/#{fname}@#{sha}"
       end
 
-      prefix = @opts[:repo_prefix] ? "#{name}: " : ""
+      text = repo.dig('defaultBranch', 'target', 'file', 'object', 'text')
+      next unless text
+
       lines  = @opts[:context] ? text.split(/\n/).first(@opts[:context]) : text.split(/\n/)
-      if @opts[:line_numbers]
+      prefix = @opts[:line_prefix] ? "#{name}:" : ""
+      puts prefix + if @opts[:line_numbers]
         w = lines.size.to_s.size
-        puts prefix + lines.each_with_index.map { |l,i| "%+#{w}s: %s" % [i+1, l] }.join("\n#{prefix}")
+        lines.each_with_index.map { |l,i| "%0#{w}i: %s" % [i+1, l] }
       else
-        puts prefix + lines.join("\n#{prefix}")
-      end
+        lines
+      end.join("\n#{prefix}")
     end
   end
 
@@ -121,15 +124,18 @@ class GitHubRepoScan
   # Build the GitHub Scanner from the options on first call, return scanner there after.
   def scan
     return @scan if @scan
-    return @scan = GitHub::Scanner.scan(:repo, **@opts.to_h) unless @opts[:path]
 
-    @scan = GitHub::Scanner.scan(:repo_file, **@opts.to_h)
+    @scan = GitHub::Scanner.scan(:repo, **@opts.to_h)
+    return @scan unless @opts[:path]
 
     # Path not matching (or no default branch), returns repo with empty file
     @scan.add_filter { |repo| !repo.dig('defaultBranch', 'target', 'file').nil? }
 
     # If we have some text, do we need to grep it
-    @scan.add_filter { |r| grep_filter r } unless @opts[:grep].empty? && @opts[:grep_exclude].empty?
+    unless @opts[:grep].empty? && @opts[:grep_exclude].empty?
+      @scan.withFileText = true
+      @scan.add_filter { |r| grep_filter r }
+    end
 
     @scan
   end

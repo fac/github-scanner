@@ -11,7 +11,6 @@ module Scanner
   def self.scan(name, **kwargs)
     case name
     when :repo       then RepoScan.new(**kwargs)
-    when :repo_file  then RepoScan.new("repo-file.graphql", **kwargs)
     when :repo_names then RepoScan.new("repo-names.graphql", **kwargs)
     else raise Error.new "Unknown scan: #{name}"
     end
@@ -24,7 +23,7 @@ module Scanner
   end
 
   class RepoScan
-    attr_accessor :org, :all, :archived, :limit
+    attr_accessor :org, :all, :archived, :limit, :withFileText
 
     attr_reader :total, :scanned, :matched
 
@@ -32,11 +31,12 @@ module Scanner
     # Note that this call with silently ignore any keyword args it doesn't
     # handle. This is to make it easy to init from the command line parser.
     # e.g. Scan.new **@opts.to_h
-    def initialize(query_file = "repo.graphql", org: nil, all: false, archived: false, limit: nil, **kwargs)
-      @org      = org
-      @all      = all
-      @archived = archived
-      @limit    = limit
+    def initialize(query_file = "repo.graphql", org: nil, all: false, archived: false, limit: nil, withFileText: false, **kwargs)
+      @org          = org
+      @all          = all
+      @archived     = archived
+      @limit        = limit
+      @withFileText = withFileText
 
       @filters = []
       add_filter { |r| @all || r['isArchived'] == @archived }
@@ -49,7 +49,7 @@ module Scanner
     end
 
     def run(vars={})
-      vars = { org: @org }.merge(vars)
+      vars = { org: @org, withFileText: @withFileText }.merge(vars)
       @total = Scanner.total_repos(@org) # tests org exists, raises if not
 
       @scanned, @matched = 0, 0

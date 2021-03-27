@@ -1,4 +1,4 @@
-query ($org: String="", $reposAfter: String, $reposFirst: Int=10) {
+query ($org: String="", $reposAfter: String, $reposFirst: Int=10, $withFileText: Boolean=false, $filePath: String="") {
   org: organization(login: $org) {
     repos: repositories(first: $reposFirst, after: $reposAfter) {
       pageInfo {
@@ -19,6 +19,17 @@ query ($org: String="", $reposAfter: String, $reposFirst: Int=10) {
                   email
               }
               oid
+              file(path: $filePath) {
+                  name
+                  path
+                  type
+                  object @include(if: $withFileText) {
+                  ... on Blob {
+                      id
+                      text
+                  }
+                }
+              }
             }
           }
         }
