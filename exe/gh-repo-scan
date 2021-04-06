@@ -4,142 +4,176 @@ require 'github/scanner'
 require 'slop' # option parsing
 
 class GitHubRepoScan
+  attr_accessor :scan
+
   def initialize
-    @progname = File.basename $0
-    @opts = nil
+    @progname   = File.basename $0
+    @opts       = nil
     @name_width = 20
   end
 
   def main
     @opts = Slop.parse do |opt|
-      opt.banner = "usage: #{@progname} [ls|list|cat|total|json] [OPTIONS]"
+      opt.banner = "usage: #{@progname} [ls|list|cat|total] [OPTIONS]"
 
-      opt.bool    '--archived',     'Include archived repos in the search'
-      opt.bool    '--all',          'Include all repos, don\'t filter by archive or path existing'
-      opt.integer '--text-context', '-C', 'Lines of files context to show', default: 10
-      opt.bool    '--repo-divider', 'Show repo divider line in cat', default: true
-      opt.bool    '--repo-prefix',  'Prefix lines with repo name in cat', default: true
-      opt.string  '--path',         'File path in the repo to scan', default: 'README.md'
-      opt.string  '--grep',         'File contents match this regex', default: ''
-      opt.string  '--grep-exclude', 'File contents do not match this regex', default: ''
-      opt.bool    '--long', '-l',   'Long list format'
-      opt.bool    '--count',        'Show count on repo matches and total at the end'
-      opt.bool    '--task-list',    'Markdown task list format list'
+      opt.string  '--org',            'GitHub organisation to scan. Uses GITHUB_ORG env if not given', default: ENV.fetch("GITHUB_ORG", nil)
+      opt.bool    '--all',            'Include all repos, archived and active. Default is only active.'
+      opt.bool    '--archived',       'Include only archived repos in the scan'
+      opt.integer '--top', '--limit', 'Only return first limit results. Default is all of them.', default: nil
+      opt.bool    '-l', '--long',     'Long list format'
+      opt.bool    '--count',          'Show count on repo matches and total at the end'
+      opt.bool    '--json',           'Output the JSON returned for each repo instead of normal list output'
+      opt.bool    '--task-list',      'Markdown task list format list'
 
-      opt.on '--version', 'print the version' do
+      opt.on '--version', 'Print the version' do
         puts GitHub::Scanner::VERSION
         exit
       end
+      opt.on '--help', 'Print usage message and option docs' do
+        puts opt
+        exit
+      end
+
+      opt.separator ""
+      opt.separator "File scanning. Set --path:"
+      opt.string  '--path',          'File path in the repo to scan', default: ''
+      opt.string  '--grep',          'File contents match this regex', default: ''
+      opt.string  '--grep-exclude',  'File contents do not match this regex', default: ''
+      opt.integer '-C', '--context', 'Lines of files context to show in cat. Default is all.', default: nil
+      opt.bool    '--file-header',   'Show file header above contents in cat', default: $stdout.tty?
+      opt.bool    '--line-prefix',   'Prefix lines with repo name in cat',     default: !$stdout.tty?
+      opt.bool    '--line-numbers',  'Prefix lines line line number in cat',   default: true
     end
 
-    exit_usage! 'No action given' if @opts.arguments.size != 1
-    act = @opts.arguments[0].to_sym
-    exit_usage! "Unknown action: #{act}" unless self.respond_to? act
+    act = @opts.arguments[0]&.to_sym
+    raise Slop::Error.new "No action given"        if act.nil?
+    raise Slop::Error.new "Unknown action: #{act}" unless self.respond_to? act
+    unless @opts[:org] && ! @opts[:org].empty?
+      raise Slop::Error.new "GitHub organisation not set, need an org to scan! Use --org or set GITHUB_ORG."
+    end
     self.send(act)
+  rescue Slop::Error => err
+    error! 10, err
   end
 
-  def exit_usage!(msg = '')
-    puts msg if msg != ''
-    puts @opts
-    exit 1
+  # Log error messages to STDERR
+  def error(msg)
+    STDERR.puts "#{@progname}: FAIL: #{msg}"
   end
 
-  def json
-    res = GitHub::Scanner.new.repo_query(repoFirst: 1)
-    puts JSON.pretty_generate(res.to_h)
+  # Log error message and exit with the code given
+  def error!(status, msg)
+    error msg
+    exit status
   end
 
   def total
-    res = GitHub::Scanner.new.repo_query(repoFirst: 1)
-    puts "Total Count: #{res.data.result.repositories.total_count}"
+    total = GitHub::Scanner.total_repos(@opts[:org])
+    puts "total_repos: #{total}"
+
+    archived, active = 0, 0
+    GitHub::Scanner.scan(:repo_names, org: @opts[:org], all: true).run.each do |repo|
+      if repo['isArchived'] then archived += 1
+      else active += 1 end
+    end
+    puts "active_repos: #{active}"
+    puts "archived_repos: #{archived}"
   end
 
+  # List repo results
   def list
-    # Get the maximum possible number of repos scanned, we wont get all these,
-    # but handy for sizing columns and things
-    res = GitHub::Scanner.new.repo_query(repoFirst: 1).data.result
-    total_count = res.repositories.total_count.to_i
-
-    c = 0
-    repos(repoFirst: 100) do |repo|
-      c = c + 1
-      puts list_line(c, repo, c_width: total_count.to_s.size)
+    scan.run({ reposFirst: 20, filePath: @opts[:path] }).each_with_index do |repo, i|
+      if @opts[:json] then json_line(repo) else list_line(i+1, repo) end
     end
-    puts("#{c} repos") if @opts[:count]
+    if @opts[:count]
+      puts "%i repos matched, %i scanned, %i total" % [scan.matched, scan.scanned, scan.total]
+    end
   end
 
   alias :ls :list
 
-  private def list_line(c, repo, c_width: 2)
-    line = if @opts[:task_list]
-      "* [ ] "
-    elsif @opts[:count]
-      "%#{c_width}d " % c
-    else
-      ""
-    end
-    name = repo.name_with_owner
-    @name_width = name.to_s.size if name.to_s.size > @name_width
-    arch = repo.is_archived ? "ARCHIVED " : ""
-    line += "%-#{@name_width}s %s" % [repo.name_with_owner, arch]
-
-    return line unless @opts[:long]
-    
-    return line + "EMPTY" if repo.default_branch&.target == nil
-
-    sha      = repo.default_branch.target.oid
-    fname    = repo.default_branch.target&.file&.path # includes name
-    authDate = repo.default_branch.target&.authored_date 
-    authName = repo.default_branch.target&.author&.name
-    line += " #{fname} #{sha[0..8]} #{authDate} #{authName}"
-    line
-  end
-
   # cat contents of repo's path to stdout
   def cat
-    repos(repoFirst: 10) do |repo|
-      name  = repo.name_with_owner
-      sha   = repo.default_branch.target.oid
-      fname = repo.default_branch.target.file.path # includes name
-      puts "==> #{name} #{fname}@#{sha} <==============================" if @opts[:repo_divider]
-      text = repo.default_branch.target&.file&.object&.text
-      unless text
-        puts "<no match>"
-        next
+    scan.withFileText = true
+    scan.run({ reposFirst: 10, filePath: @opts[:path] }).each do |repo|
+      name  = repo['nameWithOwner']
+      sha   = repo.dig 'defaultBranch', 'target', 'oid'
+      fname = repo.dig 'defaultBranch', 'target', 'file', 'path' # includes name
+
+      if @opts[:file_header]
+        puts "\n" unless scan.matched == 1
+        puts "github.com:#{name}/#{fname}@#{sha}"
       end
-      prefix = @opts[:repo_prefix] ? "#{name}: " : ""
-      puts prefix + text.split(/\n/).first(@opts[:text_context]).join("\n#{prefix}")
+
+      text = repo.dig('defaultBranch', 'target', 'file', 'object', 'text')
+      next unless text
+
+      lines  = @opts[:context] ? text.split(/\n/).first(@opts[:context]) : text.split(/\n/)
+      prefix = @opts[:line_prefix] ? "#{name}:" : ""
+      puts prefix + if @opts[:line_numbers]
+        w = lines.size.to_s.size
+        lines.each_with_index.map { |l,i| "%0#{w}i: %s" % [i+1, l] }
+      else
+        lines
+      end.join("\n#{prefix}")
     end
   end
 
-  # Scan repositories, filter out repos that don't match the repo_filter, run
-  # the given block on each repo that does. Traps errors in that block, outputs
-  # error and the raw json for the offending repo.
-  private def repos(**kwargs, &block)
-    vars  = { filePath: @opts[:path] }.merge(kwargs)
-    GitHub::Scanner.new.repositories(vars).each do |repo|
-      next unless @opts[:all] || repo_filter(repo)
-      block.call repo
-    rescue => err
-      STDERR.puts "ERROR: #{err}"
-      STDERR.puts JSON.pretty_generate(repo.to_h)
+  private
+
+  # Build the GitHub Scanner from the options on first call, return scanner there after.
+  def scan
+    return @scan if @scan
+
+    @scan = GitHub::Scanner.scan(:repo, **@opts.to_h)
+    return @scan unless @opts[:path]
+
+    # Path not matching (or no default branch), returns repo with empty file
+    @scan.add_filter { |repo| !repo.dig('defaultBranch', 'target', 'file').nil? }
+
+    # If we have some text, do we need to grep it
+    unless @opts[:grep].empty? && @opts[:grep_exclude].empty?
+      @scan.withFileText = true
+      @scan.add_filter { |r| grep_filter r }
     end
+
+    @scan
   end
 
-  # Given a repo, return true to include the repo, false to exclude
-  private def repo_filter(repo)
-    return false if !@opts[:all] && repo.is_archived && ! @opts[:archived] 
-    return false if !@opts[:all] && repo&.default_branch&.target&.file.nil?
-    text = repo.default_branch.target&.file&.object&.text
-    unless @opts[:grep].empty?
-      return false unless text
-      return false unless text =~ /#{@opts[:grep]}/m
-    end
-    unless @opts[:grep_exclude].empty?
-      return false unless text
-      return false unless text !~ /#{@opts[:grep_exclude]}/m
-    end
+  def grep_filter(repo)
+    text = repo.dig('defaultBranch', 'target', 'file', 'object', 'text')
+    return false unless text
+    return false unless @opts[:grep].empty? || text =~ /#{@opts[:grep]}/m
+    return false unless @opts[:grep_exclude].empty? || text !~ /#{@opts[:grep_exclude]}/m
     true
+  end
+
+  # Puts a result line to stdout
+  def list_line(c, repo)
+    line = if @opts[:task_list] then "* [ ] "
+      elsif @opts[:count]       then "%i\t" % c
+      else                           ""
+    end
+    name        = repo['nameWithOwner']
+    @name_width = name.to_s.size if name.to_s.size > @name_width
+    arch        = repo['isArchived'] ? "ARCHIVED " : ""
+    line += "%-#{@name_width}s %s" % [name, arch]
+
+    return puts line unless @opts[:long]
+
+    branch = repo.dig 'defaultBranch', 'target'
+    return puts line + "EMPTY" if branch.nil?
+
+    sha      = branch['oid']
+    fname    = branch.dig 'file', 'path' # includes name
+    authDate = branch['authoredDate']
+    authName = branch.dig 'author', 'name'
+    line += " #{fname} #{sha[0..8]} #{authDate} #{authName}"
+    puts line
+  end
+
+  def json_line(repo)
+    puts JSON.pretty_generate repo
   end
 end
 

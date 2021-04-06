@@ -1,0 +1,39 @@
+query ($org: String="", $reposAfter: String, $reposFirst: Int=10, $withFileText: Boolean=false, $filePath: String="") {
+  org: organization(login: $org) {
+    repos: repositories(first: $reposFirst, after: $reposAfter) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
+      nodes {
+          name
+          nameWithOwner
+          isArchived
+          defaultBranch: defaultBranchRef {
+          target {
+              ... on Commit {
+              authoredDate
+              author {
+                  name
+                  email
+              }
+              oid
+              file(path: $filePath) {
+                  name
+                  path
+                  type
+                  object @include(if: $withFileText) {
+                  ... on Blob {
+                      id
+                      text
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
