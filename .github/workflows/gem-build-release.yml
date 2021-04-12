@@ -29,7 +29,14 @@ jobs:
       with:
         bundler-cache: true # bundle install and cache
 
-    - name: Publish Gem
-      uses: ./.github/actions/publish-gem-action
+    - name: Build Gem
+      shell: bash
+      run: bundle exec rake build
+
+    - name: Setup GPR
+      uses: ./.github/actions/rubygems-setup-gpr-action
       with:
         token: ${{ secrets.github_token }}
+
+    - name: Push Gem
+      uses: ./.github/actions/rubygems-push-action

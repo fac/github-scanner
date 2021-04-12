@@ -1,0 +1,28 @@
+name: Publish Gem
+description: Publish gem to GPR
+inputs:
+  package-glob:
+    description: "File glob to match the .gem files to push"
+    default: "pkg/*.gem"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Push Gem
+      shell: bash
+      env:
+        OWNER: ${{ github.repository_owner }}
+        PACKAGE_GLOB: ${{ inputs.package-glob }}
+      run: |
+        if gem push --KEY github --host https://rubygems.pkg.github.com/${OWNER} $PACKAGE_GLOB | tee push.out
+        then
+          echo ::info::Gem Push OK
+        else
+          gemerr=$?
+          if grep "has already been pushed" push.out; then
+            echo ::info::Gem Already Released
+            exit 0
+          fi
+          echo ::error::Gem Push Failed
+          exit gemerr
+        fi

@@ -1,9 +1,6 @@
-name: Publish Gem 
-description: Publish gem to GPR
+name: RubyGems Setup GPR
+description: Configure ruby gem to access GPR (GitHub Package Registry)
 inputs:
-  package-glob:
-    description: "File glob to match the .gem files to push"
-    default: "pkg/*.gem"
   token:
     description: "Token to access the GitHub package registry. Normally using secrets.github_token is enough."
     required: true
@@ -11,10 +8,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Build Gem
-      shell: bash
-      run: bundle exec rake build
-
     - name: Setup GPR
       shell: bash
       env:
@@ -24,11 +17,3 @@ runs:
         touch $HOME/.gem/credentials
         chmod 0600 $HOME/.gem/credentials
         printf -- "---\n:github: ${GEM_HOST_API_KEY}\n" > $HOME/.gem/credentials
-
-    - name: Push Gem
-      shell: bash
-      env:
-        OWNER: ${{ github.repository_owner }}
-        PACKAGE_GLOB: ${{ inputs.package-glob }}
-      run: |
-        gem push --KEY github --host https://rubygems.pkg.github.com/${OWNER} $PACKAGE_GLOB
