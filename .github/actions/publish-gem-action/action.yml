@@ -4,6 +4,9 @@ inputs:
   package-glob:
     description: "File glob to match the .gem files to push"
     default: "pkg/*.gem"
+  token:
+    description: "Token to access the GitHub package registry. Normally using secrets.github_token is enough."
+    required: true
 
 runs:
   using: "composite"
@@ -15,7 +18,7 @@ runs:
     - name: Push Gem 
       shell: bash
       env:
-        GEM_HOST_API_KEY: "Bearer ${{ secrets.github_token }}"
+        GEM_HOST_API_KEY: "Bearer ${{ inputs.token }}"
         OWNER: ${{ github.repository_owner }}
         PACKAGE_GLOB: ${{ inputs.package-glob }}
       run: |

@@ -31,3 +31,5 @@ jobs:
 
     - name: Publish Gem
       uses: ./.github/actions/publish-gem-action
+      with:
+        token: ${{ secrets.github_token }}
