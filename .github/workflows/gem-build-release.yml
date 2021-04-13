@@ -4,7 +4,7 @@ on: push
 jobs:
   # Install the bundle and run the gems test suite.
   test:
-    name: Test Gem
+    name: RubyGems / Test
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.github_token }}
@@ -24,7 +24,7 @@ jobs:
   # the registry.
   # https://github.com/orgs/fac/packages?ecosystem=rubygems
   release:
-    name:  Release Gem
+    name: RubyGems / Release
     needs: test
     #if:    github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -40,7 +40,7 @@ jobs:
       run: bundle exec rake build
 
     - name: Setup GPR
-      uses: ./.github/actions/rubygems-setup-gpr-action
+      uses: fac/rubygems-setup-gpr-action@devp/v1.0.0
       with:
         token: ${{ secrets.github_token }}
 
