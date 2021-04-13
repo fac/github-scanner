@@ -2,6 +2,7 @@ name: Gem Build and Release
 on: push
 
 jobs:
+  # Install the bundle and run the gems test suite.
   test:
     name: Test Gem
     runs-on: ubuntu-latest
@@ -17,6 +18,11 @@ jobs:
     - name: Test
       run: bundle exec rake
 
+  # Builds on the main branch, that pass testing above, will trigger a push of a
+  # new gem version. If the version.rb has not been bumped since the last
+  # release, this will be a no-op, other wise the new version will be added to
+  # the registry.
+  # https://github.com/orgs/fac/packages?ecosystem=rubygems
   release:
     name:  Release Gem
     needs: test
