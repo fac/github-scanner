@@ -11,18 +11,20 @@ runs:
     - name: Push Gem
       shell: bash
       env:
-        OWNER: ${{ github.repository_owner }}
-        PACKAGE_GLOB: ${{ inputs.package-glob }}
+        # Expects GEM_HOST and GEM_HOST_API_KEY to be set
+        GEM_GLOB: ${{ inputs.package-glob }}
       run: |
-        if gem push --KEY github --host https://rubygems.pkg.github.com/${OWNER} $PACKAGE_GLOB | tee push.out
-        then
-          echo ::info::Gem Push OK
-        else
+        if ! gem push --host "$GEM_HOST" $GEM_GLOB | tee push.out; then
           gemerr=$?
           if grep "has already been pushed" push.out; then
-            echo ::info::Gem Already Released
+            echo Gem Already Pushed
             exit 0
           fi
           echo ::error::Gem Push Failed
-          exit gemerr
+          cat push.out | sed 's/^/::error::/'
+          exit $gemerr
         fi
+        if ! gem tag --push --verbose --pretend; then
+          echo ::warning::Failed to tag pushed commit
+        fi
+        exit 0
