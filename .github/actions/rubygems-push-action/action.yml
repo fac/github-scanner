@@ -24,7 +24,7 @@ runs:
           cat push.out | sed 's/^/::error::/'
           exit $gemerr
         fi
-        if ! gem tag --push --verbose --pretend; then
+        if ! gem tag --push --verbose; then
           echo ::warning::Failed to tag pushed commit
         fi
         exit 0
