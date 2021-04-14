@@ -48,4 +48,4 @@ jobs:
         token: ${{ secrets.github_token }}
 
     - name: Push Gem
-      uses: ./.github/actions/rubygems-push-action
+      uses: fac/rubygems-push-action@devp/v1.0.0
