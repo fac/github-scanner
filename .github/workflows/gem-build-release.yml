@@ -8,7 +8,7 @@ on:
 jobs:
   # Install the bundle and run the gems test suite.
   test:
-    name: Gems / Test
+    name: Gem / Test
     runs-on: ubuntu-latest
 
     steps:
@@ -27,7 +27,7 @@ jobs:
   # release, this will be a no-op, other wise the new version will be added to
   # the registry: https://github.com/orgs/fac/packages?ecosystem=rubygems
   release:
-    name: Gems / Release
+    name: Gem / Release
     needs: test
     #if:    github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
