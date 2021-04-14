@@ -1,13 +1,15 @@
 name: Gem Build and Release
-on: push
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   # Install the bundle and run the gems test suite.
   test:
-    name: RubyGems / Test
+    name: Gems / Test
     runs-on: ubuntu-latest
-    env:
-      GITHUB_PAT: ${{ secrets.github_token }}
 
     steps:
     - uses: actions/checkout@v2
@@ -16,15 +18,16 @@ jobs:
         bundler-cache: true # bundle install and cache
 
     - name: Test
+      env:
+        GITHUB_PAT: ${{ secrets.github_token }}
       run: bundle exec rake
 
   # Builds on the main branch, that pass testing above, will trigger a push of a
   # new gem version. If the version.rb has not been bumped since the last
   # release, this will be a no-op, other wise the new version will be added to
-  # the registry.
-  # https://github.com/orgs/fac/packages?ecosystem=rubygems
+  # the registry: https://github.com/orgs/fac/packages?ecosystem=rubygems
   release:
-    name: RubyGems / Release
+    name: Gems / Release
     needs: test
     #if:    github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -40,7 +43,7 @@ jobs:
       run: bundle exec rake build
 
     - name: Setup GPR
-      uses: fac/rubygems-setup-gpr-action@devp/v1.0.0
+      uses: fac/rubygems-setup-gpr-action@v1
       with:
         token: ${{ secrets.github_token }}
 
