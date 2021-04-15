@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    github-scanner (0.5.1.pre4)
+    github-scanner (0.5.1.pre5)
       graphql-client (~> 0.16.0)
       slop (~> 4.8)
 
