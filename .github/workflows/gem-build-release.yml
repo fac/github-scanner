@@ -29,17 +29,15 @@ jobs:
   release:
     name: Gem / Release
     needs: test
-    #if:    github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
-    - uses: ruby/setup-ruby@v1 # .ruby-version
+    - uses: ruby/setup-ruby@v1
       with:
-        bundler-cache: true # bundle install and cache
+        bundler-cache: true
 
     - name: Build Gem
-      shell: bash
       run: bundle exec rake build
 
     - name: Setup GPR
@@ -47,5 +45,15 @@ jobs:
       with:
         token: ${{ secrets.github_token }}
 
+    # Release production gem version from default branch
     - name: Push Gem
-      uses: fac/rubygems-push-action@devp/v1.0.0
+      if:   github.ref == 'refs/heads/main'
+      uses: fac/rubygems-push-action@devp/v1.1.0
+
+    # PR branch builds will release pre-release gems
+    - name: Push Gem
+      if:   github.ref != 'refs/heads/main'
+      uses: fac/rubygems-push-action@devp/v1.1.0
+      with:
+        release: false
+        pre-release: true
