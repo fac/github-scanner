@@ -46,12 +46,12 @@ jobs:
         token: ${{ secrets.github_token }}
 
     # Release production gem version from default branch
-    - name: Push Gem
+    - name: Push Release Gem
       if:   github.ref == 'refs/heads/main'
       uses: fac/rubygems-push-action@devp/v1.1.0
 
     # PR branch builds will release pre-release gems
-    - name: Push Gem
+    - name: Push Pre-Release Gem
       if:   github.ref != 'refs/heads/main'
       uses: fac/rubygems-push-action@devp/v1.1.0
       with:
