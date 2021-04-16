@@ -10,12 +10,11 @@ load bats_helper
 
 @test "Displays version with --version" {
   run gh-repo-scan --version
-  echo $output > out.out
   [ "$status" -eq 0 ]
   [ "${lines[0]}" == '0.5.0' ]
 }
 
-@test "Can scan for it's own repo" {
+@test "Can scan for its own repo" {
   gh-repo-scan ls | grep github-scanner
 }
 
@@ -23,6 +22,6 @@ load bats_helper
   gh-repo-scan ls --archived | grep -v github-scanner
 }
 
-@test "cat finds and echos this repos README" {
+@test "cat finds and echos this repo's README" {
   gh-repo-scan cat --org=fac --path=README.md -C1 | grep 'fac/github-scanner:1: # GitHub::Scanner'
 }
