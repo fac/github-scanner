@@ -127,6 +127,15 @@ After checking out the repo, run `bundle install` to install dependencies. Then,
 
 Run `bundle exec gh-repo-scan` to test your changes.
 
+### bats test suite
+
+The repo includes a bats (bash automated test system) test suite to do high level integration tests of the command line tool. First [install bats](https://bats-core.readthedocs.io/en/latest/installation.html) and export GITHUB_PAT with a token that can see this repo at minimum. Then you can run the tests:
+
+```
+export GITHUB_PAT=xxx
+bats -r test.bats
+```
+
 ### Library Use
 
 To use the lib in your own code, add this line to your application's Gemfile:
