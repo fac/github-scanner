@@ -1,4 +1,4 @@
-name: Gem Build and Release
+name: Ruby Gem Build
 on:
   push:
     branches:
@@ -7,8 +7,8 @@ on:
 
 jobs:
   # Install the bundle and run the gems test suite.
-  test:
-    name: Gem / Test
+  tests:
+    name: Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +27,8 @@ jobs:
   # release, this will be a no-op, other wise the new version will be added to
   # the registry: https://github.com/orgs/fac/packages?ecosystem=rubygems
   release:
-    name: Gem / Release
-    needs: test
+    name: Release
+    needs: tests
     runs-on: ubuntu-latest
 
     steps:
@@ -41,8 +41,7 @@ jobs:
       with:
         bundler-cache: true
 
-    - name: Build Gem
-      run: bundle exec rake build
+    - run: bundle exec rake build
 
     # Release production gem version from default branch
     - name: Push Release Gem
