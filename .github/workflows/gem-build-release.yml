@@ -32,6 +32,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: fac/ruby-gem-setup-github-packages-action@devp/v2
+      with:
+        token: ${{ secrets.github_token }}
+
     - uses: actions/checkout@v2
     - uses: ruby/setup-ruby@v1
       with:
@@ -40,20 +44,15 @@ jobs:
     - name: Build Gem
       run: bundle exec rake build
 
-    - name: Setup GPR
-      uses: fac/rubygems-setup-gpr-action@v1
-      with:
-        token: ${{ secrets.github_token }}
-
     # Release production gem version from default branch
     - name: Push Release Gem
       if:   github.ref == 'refs/heads/main'
-      uses: fac/rubygems-push-action@v1
+      uses: fac/ruby-gem-push-action@devp/v2
 
     # PR branch builds will release pre-release gems
     - name: Push Pre-Release Gem
       if:   github.ref != 'refs/heads/main'
-      uses: fac/rubygems-push-action@v1
+      uses: fac/ruby-gem-push-action@devp/v2
       with:
         release: false
         pre-release: true
