@@ -48,6 +48,7 @@ jobs:
       if:   github.ref == 'refs/heads/main'
       uses: fac/ruby-gem-push-action@devp/v2
       with:
+        key-name: github
         release: true
         pre-release: false
 
@@ -56,5 +57,6 @@ jobs:
       if:   github.ref != 'refs/heads/main'
       uses: fac/ruby-gem-push-action@devp/v2
       with:
+        key-name: github
         release: false
         pre-release: true
