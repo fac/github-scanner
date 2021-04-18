@@ -11,7 +11,7 @@ load bats_helper
 @test "Displays version with --version" {
   run gh-repo-scan --version
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" == '0.5.0' ]
+  [ "${lines[0]}" == '0.5.2.dev1' ]
 }
 
 @test "Can scan for its own repo" {

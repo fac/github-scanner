@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2021-04-16
+
+- Add: github actions driven gem release using fac ruby actions
+
 ## [0.5.0] - 2021-03-27
 
 * Add `--help` instead of just failing on no action.

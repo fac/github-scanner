@@ -1,46 +1,62 @@
-name: Gem Build and Release
-on: push
+name: Ruby Gem Build
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
 jobs:
-  build-test:
-    name: Build + Test 
+  # Install the bundle and run the gems test suite.
+  tests:
+    name: Tests
     runs-on: ubuntu-latest
-    env:
-      GITHUB_PAT: ${{ secrets.github_token }}
 
     steps:
     - uses: actions/checkout@v2
     - uses: ruby/setup-ruby@v1 # .ruby-version for ruby setup
       with:
         bundler-cache: true # bundle install and cache
+
     - name: Test
+      env:
+        GITHUB_PAT: ${{ secrets.github_token }}
       run: bundle exec rake
 
-  # This is taken from the GH docs and others. Doesn't check if the version is
-  # released so re-running will trigger an error when the gem fails to push.
-  # TODO: Tagging. gem tag can tag with the version, for now that is enough.
-  # Later, main build should tag a commit and the tagging trigger a release workflow.
-  # TODO: Bump version (gem bump for now?)
-  # https://docs.github.com/en/actions/guides/building-and-testing-ruby
+  # Builds on the main branch, that pass testing above, will trigger a push of a
+  # new gem version. If the version.rb has not been bumped since the last
+  # release, this will be a no-op, other wise the new version will be added to
+  # the registry: https://github.com/orgs/fac/packages?ecosystem=rubygems
   release:
-    name:  Release Gem
-    needs: build-test
-    if:    github.ref == 'refs/heads/main'
+    name: Release
+    needs: tests
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: ruby/setup-ruby@v1 # .ruby-version for ruby setup
+    - uses: fac/ruby-gem-setup-github-packages-action@devp/v2
       with:
-        bundler-cache: true # bundle install and cache
-    - name: Package Gem
-      run: bundle exec rake build
-    - name: Publish to GPR
-      env:
-        GEM_HOST_API_KEY: "Bearer ${{ secrets.github_token }}"
-        OWNER: ${{ github.repository_owner }}
-      run: |
-        mkdir -p $HOME/.gem
-        touch $HOME/.gem/credentials
-        chmod 0600 $HOME/.gem/credentials
-        printf -- "---\n:github: ${GEM_HOST_API_KEY}\n" > $HOME/.gem/credentials
-        gem push --KEY github --host https://rubygems.pkg.github.com/${OWNER} pkg/*.gem
+        token: ${{ secrets.github_token }}
+
+    - uses: actions/checkout@v2
+    - uses: ruby/setup-ruby@v1
+      with:
+        bundler-cache: true
+
+    - run: bundle exec rake build
+
+    # Release production gem version from default branch
+    - name: Push Release Gem
+      if:   github.ref == 'refs/heads/main'
+      uses: fac/ruby-gem-push-action@devp/v2
+      with:
+        key-name: github
+        release: true
+        pre-release: false
+
+    # PR branch builds will release pre-release gems
+    - name: Push Pre-Release Gem
+      if:   github.ref != 'refs/heads/main'
+      uses: fac/ruby-gem-push-action@devp/v2
+      with:
+        key-name: github
+        release: false
+        pre-release: true
