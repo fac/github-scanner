@@ -1,4 +1,4 @@
-name: Ruby Gem Build
+name: FreeAgent Gem
 on:
   push:
     branches:
@@ -27,8 +27,7 @@ jobs:
   # release, this will be a no-op, other wise the new version will be added to
   # the registry: https://github.com/orgs/fac/packages?ecosystem=rubygems
   release:
-    name: Release
-    needs: tests
+    needs:   tests
     runs-on: ubuntu-latest
 
     steps:
@@ -44,14 +43,14 @@ jobs:
     - run: bundle exec rake build
 
     # Release production gem version from default branch
-    - name: Push Release Gem
+    - name: Release
       if:   github.ref == 'refs/heads/main'
       uses: fac/ruby-gem-push-action@devp/v2
       with:
         key: github
 
     # PR branch builds will release pre-release gems
-    - name: Push Pre-Release Gem
+    - name: Pre-Release
       if:   github.ref != 'refs/heads/main'
       uses: fac/ruby-gem-push-action@devp/v2
       with:

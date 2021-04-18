@@ -1,5 +1,8 @@
 # GitHub::Scanner
 
+![ruby gem](https://github.com/fac/github-scanner/actions/workflows/freeagent-gem.yml/badge.svg)
+![bats test](https://github.com/fac/github-scanner/actions/workflows/bats.yml/badge.svg)
+
 A command line power tool for fast scanning of GH repos and their git trees, via the graphQL API.
 
 ## Synopsis
