@@ -47,6 +47,9 @@ jobs:
     - name: Push Release Gem
       if:   github.ref == 'refs/heads/main'
       uses: fac/ruby-gem-push-action@devp/v2
+      with:
+        release: true
+        pre-release: false
 
     # PR branch builds will release pre-release gems
     - name: Push Pre-Release Gem
