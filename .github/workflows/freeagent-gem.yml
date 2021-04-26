@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: fac/ruby-gem-setup-github-packages-action@devp/v2
+    - uses: fac/ruby-gem-setup-credentials-action@devp/v2
       with:
         token: ${{ secrets.github_token }}
 
