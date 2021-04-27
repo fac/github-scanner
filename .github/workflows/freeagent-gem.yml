@@ -1,0 +1,58 @@
+name: FreeAgent Gem
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  # Install the bundle and run the gems test suite.
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: ruby/setup-ruby@v1 # .ruby-version for ruby setup
+      with:
+        bundler-cache: true # bundle install and cache
+
+    - name: Test
+      env:
+        GITHUB_PAT: ${{ secrets.github_token }}
+      run: bundle exec rake
+
+  # Builds on the main branch, that pass testing above, will trigger a push of a
+  # new gem version. If the version.rb has not been bumped since the last
+  # release, this will be a no-op, other wise the new version will be added to
+  # the registry: https://github.com/orgs/fac/packages?ecosystem=rubygems
+  release:
+    needs:   tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: fac/ruby-gem-setup-credentials-action@devp/v2
+      with:
+        token: ${{ secrets.github_token }}
+
+    # Build the gem package
+    - uses: actions/checkout@v2
+    - uses: ruby/setup-ruby@v1
+      with:
+        bundler-cache: true
+    - run: bundle exec rake build
+
+    # Release production gem version from default branch
+    - name: Release
+      if:   github.ref == 'refs/heads/main'
+      uses: fac/ruby-gem-push-action@devp/v2
+      with:
+        key: github
+
+    # PR branch builds will release pre-release gems
+    - name: Pre-Release
+      if:   github.ref != 'refs/heads/main'
+      uses: fac/ruby-gem-push-action@devp/v2
+      with:
+        key: github
+        pre-release: true

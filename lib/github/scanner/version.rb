@@ -2,6 +2,6 @@
 
 module GitHub
   module Scanner
-    VERSION = "0.5.0"
+    VERSION = "1.5.2.dev2"
   end
 end
