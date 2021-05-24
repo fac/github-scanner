@@ -2,6 +2,7 @@
 
 require 'tmpdir'
 require 'digest'
+require 'pathname'
 
 require 'graphql/client'
 require 'graphql/client/http'

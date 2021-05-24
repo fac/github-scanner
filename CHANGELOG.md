@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.5.3] - 2021-05-24
+
+- Fix: Pathname used before requiring it
+
 ## [0.5.1] - 2021-04-16
 
 - Add: github actions driven gem release using fac ruby actions
