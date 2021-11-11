@@ -5,8 +5,8 @@ require_relative "lib/github/scanner/version"
 Gem::Specification.new do |spec|
   spec.name    = "github-scanner"
   spec.version = GitHub::Scanner::VERSION
-  spec.authors = ["Mark Pitchless"]
-  spec.email   = ["markpitchless@gmail.com"]
+  spec.authors = ["FreeAgent"]
+  spec.email   = ["opensource@freeagent.com"]
 
   spec.summary       = "Fast scanning of GitHub repos and their files."
   # spec.description   = "TODO: Write a longer description or delete this line."
