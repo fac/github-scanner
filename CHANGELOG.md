@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add: Apache 2.0 license
+
 ## [0.5.3] - 2021-05-24
 
 - Fix: Pathname used before requiring it
