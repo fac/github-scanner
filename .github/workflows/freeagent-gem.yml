@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: ruby/setup-ruby@v1 # .ruby-version for ruby setup
+    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
+    - uses: ruby/setup-ruby@afeafc3d1ab54a631816aba4c914a0081c12ff2f # v1.310.0
       with:
         bundler-cache: true # bundle install and cache
 
@@ -31,13 +31,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: fac/ruby-gem-setup-credentials-action@v2
+    - uses: fac/ruby-gem-setup-credentials-action@5f62d5f2f56a11c7422a92f81fbb29af01e1c00f # v2
       with:
         token: ${{ secrets.github_token }}
 
     # Build the gem package
-    - uses: actions/checkout@v2
-    - uses: ruby/setup-ruby@v1
+    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
+    - uses: ruby/setup-ruby@afeafc3d1ab54a631816aba4c914a0081c12ff2f # v1.310.0
       with:
         bundler-cache: true
     - run: bundle exec rake build
@@ -45,14 +45,14 @@ jobs:
     # Release production gem version from default branch
     - name: Release
       if:   github.ref == 'refs/heads/main'
-      uses: fac/ruby-gem-push-action@v2
+      uses: fac/ruby-gem-push-action@81d77bf568ff6659d7fae0f0c5a036bb0aeacb1a # v2
       with:
         key: github
 
     # PR branch builds will release pre-release gems
     - name: Pre-Release
       if:   github.ref != 'refs/heads/main'
-      uses: fac/ruby-gem-push-action@v2
+      uses: fac/ruby-gem-push-action@81d77bf568ff6659d7fae0f0c5a036bb0aeacb1a # v2
       with:
         key: github
         pre-release: true
